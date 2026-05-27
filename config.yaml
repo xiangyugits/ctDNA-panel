@@ -1,0 +1,114 @@
+# ===== 项目路径配置 =====
+paths:
+  # 输入数据
+  data_dir: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA"
+  fastq_dir: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/fastq"
+  
+  # 输出根目录
+  output_dir: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results"
+  
+
+# ===== 样本配置 =====
+samples:
+  tumor:
+    - '202611'
+    - '202612'
+    - '202613'
+    - '202614'
+    - '202615'
+  normal:
+    - NC
+
+# ===== 参考文件配置 =====
+reference:
+  genome: "hg19"
+  fasta: "/home/zhangli_lab/zhouxiangyu/DATA/genome/human/hg19/hg19.fa"
+  bwa_mem2_index: "/home/zhangli_lab/zhouxiangyu/DATA/genome/human/hg19/bwa-mem2/hg19"
+
+  # Panel 目标区域
+  target_bed: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed.gz"
+  
+  # 种系资源数据库
+  #群体胚系变异资源（如gnomAD vcf），用于区分体细胞与胚系突变
+  germline_resource: "/home/zhangli_lab/zhouxiangyu/DATA/genome/human/hg19/gnomAD/af-only-gnomad.raw.hg19.vcf.gz"
+  germline_resource_idx: "/home/zhangli_lab/zhouxiangyu/DATA/genome/human/hg19/gnomAD/af-only-gnomad.raw.hg19.vcf.gz.tbi"
+  
+# ===== 变异检测参数 =====
+variant_calling:
+  # SNV 检测
+  snv:
+    tool: "mutect2"
+    min_base_quality: 30
+    contamination_estimate: 0.01
+    
+  # CNV 检测
+  cnv:
+    tool: "cnvkit"
+    min_mapq: 30
+    
+  # SV 检测
+  sv:
+    tool: "manta"
+    min_mapq: 30
+
+# ===== 过滤参数 =====
+filtering:
+  # SNV 严格过滤
+  snv:
+    min_vaf: 0.005                  # 最低等位基因频率
+    strand_bias_threshold: 0.01     # 链偏向阈值
+    min_mq: 30                      # 最低平均测序质量（INFO/MMQ）
+    min_tlod: 60                    # 最低肿瘤对照比值（INFO/TLOD）
+    min_depth: 10                   # 最低测序深度
+    max_gnomad_af: 0.001            # 最高人群频率
+
+  # CNV 过滤
+  cnv:
+    min_log2_abs: 0.3               # 最少 log2 比值
+    min_probes: 5                   # 最少连续探针数
+    max_ci: 1.0                     # 最大置信区间
+    
+  # SV 过滤
+  sv:
+    delly_sv_types: "DEL,DUP,INV,INS,TRA,BND"  # 检测的SV类型
+    delly_min_mapq: 1                          # 最小比对质量
+    delly_min_support: 1                        # 最小支持reads数
+
+annotation:
+  annovar:
+    install_dir: "/home/zhangli_lab/zhouxiangyu/DATA/software/annovar"
+    db_dir: "/home/zhangli_lab/zhouxiangyu/DATA/software/annovar/humandb"
+    
+    # hg19 数据库
+    protocols:
+      - refGene
+      - avsnp147
+      - clinvar
+      - cosmic70
+      - dbscsnv11
+      - revel
+      - gnomad_genome
+  
+  post_annotation:
+    gene_lists:
+      cancer_genes: "/data/databases/gene_lists/cancer_gene_census.txt"
+      actionable_genes: "/data/databases/gene_lists/actionable_genes.txt"
+
+
+# ===== 计算资源配置 =====
+resources:
+  default_threads: 4
+  default_memory_mb: 16000
+  bwa_threads: 16
+  bwa_memory_mb: 32000
+  fgbio_threads: 8
+  fgbio_memory_mb: 32000
+  mutect_threads: 8
+  mutect_memory_mb: 32000
+  manta_threads: 8
+  manta_memory_mb: 32000
+  # Delly 配置
+  delly_call_threads: 4
+  delly_call_memory: 8000
+  delly_filter_threads: 2
+  delly_filter_memory: 4000

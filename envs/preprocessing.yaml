@@ -1,0 +1,32 @@
+# envs/preprocessing.yaml
+# 前处理流程合并环境：fastp + bwa + samtools + fgbio
+# 适用于：fastp质控/UMI提取 + BWA比对 + fgbio UMI处理
+# ============================================================================
+
+name: ctdna_preprocessing
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+
+dependencies:
+  # fastp 0.23.4 - 质控和UMI提取
+  - fastp=0.23.4
+  
+  # bwa 0.7.17 - 短读比对
+  - bwa=0.7.17
+  
+  # samtools 1.19.2 - BAM处理
+  - samtools=1.19.2
+  
+  # fgbio 2.1.0 - UMI处理
+  - fgbio=2.1.0
+  
+  # pigz 2.8 - 并行gzip压缩（可选，加速读写）
+  - pigz=2.8
+  
+  # openjdk 17.0.12 - fgbio依赖
+  - openjdk=17.0.12
+  
+  # libdeflate - 加速gzip解压
+  - libdeflate=1.19
