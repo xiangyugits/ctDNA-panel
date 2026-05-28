@@ -32,6 +32,22 @@ rule delly_call:
         """
         module load delly
         
+        # 打印过滤参数到日志
+        echo "========================================" >> {log}
+        echo "Delly Call Parameters:" >> {log}
+        echo "========================================" >> {log}
+        echo "Reference genome: {input.ref}" >> {log}
+        echo "Tumor BAM: {input.tumor_bam}" >> {log}
+        echo "Normal BAM: {input.normal_bam}" >> {log}
+        echo "SV types: {params.sv_types}" >> {log}
+        echo "Minimum MAPQ: {params.min_mapq}" >> {log}
+        echo "Minimum support reads: {params.min_support}" >> {log}
+        echo "Threads: {threads}" >> {log}
+        echo "Memory: {resources.mem_mb} MB" >> {log}
+        echo "========================================" >> {log}
+        echo "" >> {log}
+        
+        # 执行Delly call
         delly call \
             -g {input.ref} \
             -t {params.sv_types} \
@@ -39,7 +55,25 @@ rule delly_call:
             -q {params.min_mapq} \
             -s {params.min_support} \
             {input.tumor_bam} {input.normal_bam} \
-            2> {log}
+            2>> {log}
+        
+        # 打印结果统计
+        echo "" >> {log}
+        echo "========================================" >> {log}
+        echo "Delly Call Results:" >> {log}
+        echo "========================================" >> {log}
+        if [ -f {output.bcf} ]; then
+            echo "Output BCF file: {output.bcf}" >> {log}
+            echo "BCF file size: $(du -h {output.bcf} | cut -f1)" >> {log}
+            # 统计变异数量（如果bcftools可用）
+            if command -v bcftools &> /dev/null; then
+                SV_COUNT=$(bcftools view -H {output.bcf} 2>/dev/null | wc -l)
+                echo "Number of raw SV calls: $SV_COUNT" >> {log}
+            fi
+        else
+            echo "WARNING: Output BCF file not created!" >> {log}
+        fi
+        echo "========================================" >> {log}
         """
 
 
@@ -281,3 +315,68 @@ rule call_sv_delly:
             f.write(f"  - Report: {input.report}\n")
             f.write(f"  - Stats: {input.stats}\n")
 
+# ============================================
+# Rule 7: manta 结构变异检测（备选方案）
+# ============================================
+
+rule call_sv_manta:
+    """
+    使用 Manta 检测结构变异（针对靶向测序优化）
+    """
+    input:
+        tumor_bam=f"{BAM_DIR}/{{tumor}}.dedup.bam",
+        tumor_bai=f"{BAM_DIR}/{{tumor}}.dedup.bam.bai",
+        normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
+        normal_bai=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
+        ref=REF_FASTA,
+        bed=TARGET_BED
+    output:
+        vcf=f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz",
+        tbi=f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz.tbi"
+    log:
+        f"{LOG_DIR}/manta_{{tumor}}.log"
+    threads: 4
+    resources:
+        mem_mb=16000
+    params:
+        run_dir=f"{VAR_DIR}/sv/{{tumor}}_manta"
+    shell:
+        """
+        module load manta
+        
+        # 关键修改1：不使用 --callRegions 和 --exome
+        configManta.py \
+            --tumorBam {input.tumor_bam} \
+            --normalBam {input.normal_bam} \
+            --referenceFasta {input.ref} \
+            --runDir {params.run_dir} \
+            > {log} 2>&1
+        
+        # 关键修改2：修改配置文件，降低阈值
+        CONFIG_FILE="{params.run_dir}/configManta.py.ini"
+        if [ -f "$CONFIG_FILE" ]; then
+            # 降低高置信度reads阈值
+            sed -i 's/minHqPairThreshold = 100/minHqPairThreshold = 10/g' $CONFIG_FILE
+            sed -i 's/minHqMapq = 20/minHqMapq = 5/g' $CONFIG_FILE
+            # 禁用统计检查（如果支持）
+            echo "isSkipAlignmentStats = 1" >> $CONFIG_FILE
+            echo "minCandidateRegionSize = 20" >> $CONFIG_FILE
+            echo "maxCandidateRegionSize = 10000000" >> $CONFIG_FILE
+        fi
+        
+        # 执行 Manta
+        python2 {params.run_dir}/runWorkflow.py \
+            -m local \
+            -j {threads} \
+            >> {log} 2>&1
+        
+        # 检查结果文件是否存在
+        if [ -f {params.run_dir}/results/variants/somaticSV.vcf.gz ]; then
+            cp {params.run_dir}/results/variants/somaticSV.vcf.gz {output.vcf}
+            cp {params.run_dir}/results/variants/somaticSV.vcf.gz.tbi {output.tbi}
+        else
+            # 如果没有体细胞变异，创建空文件
+            echo -e "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO" | bgzip > {output.vcf}
+            tabix -p vcf {output.vcf}
+        fi
+        """

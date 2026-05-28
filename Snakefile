@@ -59,14 +59,18 @@ rule all:
         expand(f"{QC_DIR}/multiqc_report.html"),
             
         # 最终变异结果
-        expand(f"{FINAL_DIR}/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
-        expand(f"{FINAL_DIR}/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
-        expand(f"{VAR_DIR}/sv/{{tumor}}.delly.done", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
+        
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.delly.done", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # 注释和分类结果
-        expand(f"{FINAL_DIR}/{{tumor}}.snv.annotated.vcf", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.vcf", tumor=TUMOR_SAMPLES),
 
         # 分析报告
+        #f"{FINAL_DIR}/all_samples.genelist_filtered.txt"
+
         #expand(f"{REPORT_DIR}/{{tumor}}_analysis_report.html", tumor=TUMOR_SAMPLES),
         #f"{REPORT_DIR}/cohort_summary.html"
 

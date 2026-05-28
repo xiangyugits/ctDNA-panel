@@ -1,3 +1,4 @@
+SCRIPT_DIR = os.path.join(workflow.basedir, "scripts")
 
 # ===================================================================
 # CNV 检测（CNVkit 配对模式）
@@ -54,9 +55,9 @@ rule final_filter_cnv:
     """
     input:
         cns=f"{VAR_DIR}/cnv/{{tumor}}.cns",
-        script="/home/zhangli_lab/zhouxiangyu/DATA/workflow/ctDNA-panel/scripts/filter_cnv.py"
+        script=os.path.join(SCRIPT_DIR, "filter_cnv.py")
     output:
-        filtered=f"{FINAL_DIR}/{{tumor}}.cnv.filtered.cns"
+        filtered=f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns"
     log:
         f"{LOG_DIR}/final_filter_cnv_{{tumor}}.log"
     params:

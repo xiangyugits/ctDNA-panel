@@ -19,14 +19,13 @@ rule call_snv_mutect2:
         stats=f"{VAR_DIR}/snv/{{tumor}}.mutect2.stats.tar.gz"
     log:
         f"{LOG_DIR}/mutect2_{{tumor}}.log"
-    threads: config["resources"]["mutect_threads"]
+    threads: 6
     resources:
-        mem_mb=config["resources"]["mutect_memory_mb"]
+        slurm_partition="q_fat,q_fat_l",
+        mem_mb=120000
     params:
         normal_name=NORMAL_SAMPLE,
         tmp_dir=TMP_DIR
-    #conda:
-    #    "envs/environment.yaml"
     shell:
         """
         gatk --java-options "-Xmx{resources.mem_mb}m -Djava.io.tmpdir={params.tmp_dir}" \
@@ -37,9 +36,6 @@ rule call_snv_mutect2:
             --normal-sample {params.normal_name} \
             --germline-resource {input.germline} \
             --intervals {input.bed} \
-            --af-of-alleles-not-in-resource 0.0000025 \
-            --minimum-allele-fraction 0.01 \
-            --max-reads-per-alignment-start 0 \
             --f1r2-tar-gz {output.stats} \
             --output {output.vcf} \
             > {log} 2>&1
@@ -61,8 +57,6 @@ rule filter_snv_mutect2:
         contamination=config["variant_calling"]["snv"]["contamination_estimate"]
     resources:
         mem_mb=8000
-    #conda:
-    #    "envs/environment.yaml"
     shell:
         """
         gatk --java-options "-Xmx{resources.mem_mb}m" \
@@ -77,55 +71,47 @@ rule filter_snv_mutect2:
 rule ctdna_comprehensive_filter:
     """
     对 Mutect2 结果进行 ctDNA 综合过滤
-    基于实际可用的VCF字段
     """
     input:
         vcf=f"{VAR_DIR}/snv/{{tumor}}.mutect2.filtered.vcf.gz",
         tbi=f"{VAR_DIR}/snv/{{tumor}}.mutect2.filtered.vcf.gz.tbi"
     output:
-        vcf=f"{FINAL_DIR}/{{tumor}}.snv.filtered.vcf.gz",
-        tbi=f"{FINAL_DIR}/{{tumor}}.snv.filtered.vcf.gz.tbi"
+        vcf=f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz",
+        tbi=f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz.tbi"
     log:
         f"{LOG_DIR}/ctdna_comprehensive_filter_{{tumor}}.log"
     params:
-        # 核心参数（基于实际VCF字段）
         min_af=config["filtering"]["snv"].get("min_vaf", 0.005),
-        min_tlod=config["filtering"]["snv"].get("min_tlod", 60),
-        min_depth=config["filtering"]["snv"].get("min_depth", 10),
-        min_mq=config["filtering"]["snv"].get("min_mq", 30),  # 对应 INFO/MMQ
-        
-        # 可选：AD过滤（支持突变reads数）
-        min_ad=config["filtering"]["snv"].get("min_ad", 0),  # 新增，对应 FORMAT/AD[1]
-        
-        # 以下参数在标准Mutect2中不可用，建议设为0禁用
-        #min_umi_families=config["filtering"]["snv"].get("min_umi_families", 0),
-        #min_supporting_bases=config["filtering"]["snv"].get("min_supporting_bases", 0),
-        #max_gnomad_af=config["filtering"]["snv"].get("max_gnomad_af", 1)  # 默认1表示不过滤
-    threads: 2
+        min_tlod=config["filtering"]["snv"].get("min_tlod", 30),
+        min_depth=config["filtering"]["snv"].get("min_depth", 50),
+        min_mq=config["filtering"]["snv"].get("min_mq", 30),
+        min_ad=config["filtering"]["snv"].get("min_ad", 10)
+    threads: 1
     resources:
-        mem_mb=4000
+        mem_mb=2000
     shell:
         """
-        # 构建基础过滤表达式
-        FILTER_EXPR="FORMAT/AF < {params.min_af} || \
-                     FORMAT/DP < {params.min_depth} || \
-                     INFO/TLOD < {params.min_tlod} || \
-                     INFO/MMQ < {params.min_mq}"
+        echo "=== ctDNA Filter: {wildcards.tumor} ===" > {log}
+        echo "Total: $(bcftools view -H {input.vcf} 2>/dev/null | wc -l)" >> {log}
+        echo "PASS:  $(bcftools view -f PASS -H {input.vcf} 2>/dev/null | wc -l)" >> {log}
+        echo "Params: AF>={params.min_af} DP>={params.min_depth} TLOD>={params.min_tlod} MMQ>={params.min_mq} AD>={params.min_ad}" >> {log}
         
-        # 添加AD过滤（如果需要）
-        if [ {params.min_ad} -gt 0 ]; then
-            FILTER_EXPR="$FILTER_EXPR || FORMAT/AD[:1] < {params.min_ad}"
+        # 修正：所有 FORMAT 字段使用 [样本:子字段] 格式
+        bcftools view -f PASS {input.vcf} 2>/dev/null \
+        | bcftools filter \
+            -i "FORMAT/AF[0:0] >= {params.min_af} && \
+                FORMAT/DP[0:0] >= {params.min_depth} && \
+                INFO/TLOD >= {params.min_tlod} && \
+                INFO/MMQ >= {params.min_mq} && \
+                FORMAT/AD[0:1] >= {params.min_ad}" \
+            -Oz -o {output.vcf} \
+            2>> {log}
+        
+        # 检查输出
+        if [ -f {output.vcf} ]; then
+            bcftools index -t {output.vcf} 2>> {log}
+            echo "Output: $(bcftools view -H {output.vcf} 2>/dev/null | wc -l) variants" >> {log}
+        else
+            echo "WARNING: No output" >> {log}
         fi
-        
-        # 注意：STRAND_BIAS 已经由 GATK FilterMutectCalls 处理
-        # 只需保留 PASS 位点即可，不需要额外过滤
-        
-        # 应用过滤
-        bcftools view -f 'PASS' {input.vcf} | \
-        bcftools filter \
-            -e "$FILTER_EXPR" \
-            -s "ctDNA_filter" \
-            -Oz -o {output.vcf} 2> {log}
-        
-        bcftools index -t {output.vcf}
         """

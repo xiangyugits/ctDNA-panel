@@ -1,3 +1,5 @@
+SCRIPT_DIR = os.path.join(workflow.basedir, "scripts")
+
 # ===================================================================
 # Part 8: ANNOVAR 变异注释
 # ===================================================================
@@ -7,9 +9,9 @@ rule convert_vcf_to_annovar:
     将 VCF 转换为 ANNOVAR 输入格式
     """
     input:
-        vcf=f"{FINAL_DIR}/{{tumor}}.snv.filtered.vcf.gz"
+        vcf=f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz",
     output:
-        avinput=f"{FINAL_DIR}/{{tumor}}.snv.annovar_input"
+        avinput=f"{VAR_DIR}/annovar/{{tumor}}.snv.annovar_input"
     log:
         f"{LOG_DIR}/convert2annovar_{{tumor}}.log"
     params:
@@ -39,15 +41,16 @@ rule annotate_with_annovar:
     - gnomad_genome: gnomAD 全基因组频率
     """
     input:
-        avinput=f"{FINAL_DIR}/{{tumor}}.snv.annovar_input"
+        avinput=f"{VAR_DIR}/annovar/{{tumor}}.snv.annovar_input"
     output:
-        multianno=f"{FINAL_DIR}/{{tumor}}.snv.hg19_multianno.txt",
-        vcf=f"{FINAL_DIR}/{{tumor}}.snv.annotated.vcf",
+        multianno=f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.txt",
+        vcf=f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.vcf",
     log:
         f"{LOG_DIR}/annovar_{{tumor}}.log"
     params:
         annovar_dir=config["annotation"]["annovar"]["install_dir"],
         db_dir=config["annotation"]["annovar"]["db_dir"],
+        out_prefix=f"{VAR_DIR}/annovar/{{tumor}}.snv",
         buildver="hg19",
         # 协议：数据库名称
         protocols="refGene,avsnp147,clinvar,cosmic70,dbscsnv11,revel,gnomad_genome",
@@ -62,8 +65,7 @@ rule annotate_with_annovar:
             {input.avinput} \
             {params.db_dir}/ \
             -buildver {params.buildver} \
-            -out {FINAL_DIR}/{wildcards.tumor}.snv \
-            -remove \
+            -out {params.out_prefix} \
             -protocol {params.protocols} \
             -operation {params.operations} \
             -nastring . \
@@ -71,6 +73,35 @@ rule annotate_with_annovar:
             -thread {threads} \
             > {log} 2>&1
         """
+rule filter_by_genelist:
+    """
+    根据基因列表筛选 ANNOVAR 注释结果，并格式化输出
+    输出格式：染色体、位置(3'rule)、基因(HGVS)、转录本(ClinVar)、
+             cHGVS、pHGVS、类型(SNV/Insertion/Deletion/Complex)、VAF(两位小数)
+    """
+    input:
+        multianno=f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.txt",
+        gene_list=config["annotation"]["annovar"]["target_genes"]
+    output:
+        filtered=f"{FINAL_DIR}/{{tumor}}.snv.genelist_filtered.txt"
+    log:
+        f"{LOG_DIR}/filter_genelist_{{tumor}}.log"
+    params:
+        script=os.path.join(SCRIPT_DIR, "filter_by_genelist.py")
+    shell:
+        """
+        python3 {params.script} \
+            --multianno {input.multianno} \
+            --gene-list {input.gene_list} \
+            --output {output.filtered} \
+            > {log} 2>&1
+        """
+
+
+# ===================================================================
+# 使用 bcftools 过滤 ANNOVAR 注释结果，未使用
+# ===================================================================
+
 
 rule filter_annovar_with_bcftools:
     """
@@ -126,7 +157,7 @@ rule classify_variants_tier:
     """
     input:
         filtered=f"{FINAL_DIR}/{{tumor}}.snv.annotated.filtered.txt",
-        script="/home/zhangli_lab/zhouxiangyu/DATA/workflow/ctDNA-panel/scripts/classify_variants.py"
+        script=os.path.join(SCRIPT_DIR, "classify_variants.py")
     output:
         all_tiers=f"{FINAL_DIR}/{{tumor}}.snv.all_tiers.xlsx"
     log:
