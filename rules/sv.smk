@@ -471,13 +471,12 @@ rule call_sv_gridss:
         echo "========================================" >> {log}
 
         # 构建 GRIDSS 命令
-        GRIDSS_CMD="gridss \\
+        GRIDSS_CMD="java -Xmx16g -jar {GRIDSS_JAR} \\
             --reference {input.ref} \\
             --output {output.vcf} \\
             --assembly {output.assembly_bam} \\
             --threads {threads} \\
-            --workingdir {params.tmp_dir} \\
-            --jar {GRIDSS_JAR}"
+            --workingdir {params.tmp_dir}"
 
         # 如果有黑名单 BED，加入过滤
         if [ -n "{params.blacklist}" ] && [ -f "{params.blacklist}" ]; then

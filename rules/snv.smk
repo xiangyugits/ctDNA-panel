@@ -41,11 +41,31 @@ rule call_snv_mutect2:
             > {log} 2>&1
         """
 
+rule learn_read_orientation:
+    """学习 reads 方向性 artifact 模型（GATK 最佳实践必需步骤）"""
+    input:
+        stats=f"{VAR_DIR}/snv/{{tumor}}.mutect2.stats.tar.gz"
+    output:
+        priors=f"{VAR_DIR}/snv/{{tumor}}.mutect2.artifact-priors.tar.gz"
+    log:
+        f"{LOG_DIR}/learn_orientation_{{tumor}}.log"
+    threads: 4
+    resources:
+        mem_mb=8000
+    shell:
+        """
+        gatk --java-options "-Xmx{resources.mem_mb}m" \
+            LearnReadOrientationModel \
+            -I {input.stats} \
+            -O {output.priors} \
+            > {log} 2>&1
+        """
+
 rule filter_snv_mutect2:
     """过滤 Mutect2 结果"""
     input:
         vcf=f"{VAR_DIR}/snv/{{tumor}}.mutect2.vcf.gz",
-        stats=f"{VAR_DIR}/snv/{{tumor}}.mutect2.stats.tar.gz",
+        priors=f"{VAR_DIR}/snv/{{tumor}}.mutect2.artifact-priors.tar.gz",
         ref=REF_FASTA
     output:
         vcf=f"{VAR_DIR}/snv/{{tumor}}.mutect2.filtered.vcf.gz",
@@ -64,6 +84,7 @@ rule filter_snv_mutect2:
             --reference {input.ref} \
             --variant {input.vcf} \
             --contamination-estimate {params.contamination} \
+            --orientation-bias-artifact-priors {input.priors} \
             --output {output.vcf} \
             > {log} 2>&1
         """
