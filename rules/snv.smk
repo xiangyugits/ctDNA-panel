@@ -110,7 +110,7 @@ rule ctdna_comprehensive_filter:
         # 检查输出
         if [ -f {output.vcf} ]; then
             bcftools index -t {output.vcf} 2>> {log}
-            echo "Output: $(bcftools view -H {output.vcf} 2>/dev/null | wc -l) variants" >> {log}
+            echo "Output: $(bcftools view -H {output.vcf} 2>> {log} | wc -l) variants" >> {log}
         else
             echo "WARNING: No output" >> {log}
         fi
