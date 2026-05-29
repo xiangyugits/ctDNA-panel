@@ -55,12 +55,12 @@ variant_calling:
 filtering:
   # SNV 严格过滤
   snv:
-    min_vaf: 0.005                  # 最低等位基因频率
-    min_tlod: 30                    # 最低肿瘤对照比值（INFO/TLOD）
-    min_depth: 50                   # 最低测序深度
+    min_vaf: 0.01                  # 最低等位基因频率
+    min_tlod: 25                    # 最低肿瘤对照比值（INFO/TLOD）
+    min_depth: 30                   # 最低测序深度
     min_mq: 30                      # 最低平均测序质量（INFO/MMQ）
     min_ad: 10                       # 最少支持变异的reads数（INFO/AD）
-    max_gnomad_af: 0.001            # 最高人群频率
+    max_gnomad_af: 0.01            # 最高人群频率
 
   # CNV 过滤
   cnv:

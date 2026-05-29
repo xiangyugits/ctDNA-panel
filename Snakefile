@@ -67,6 +67,10 @@ rule all:
 
         # 注释和分类结果
         expand(f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.vcf", tumor=TUMOR_SAMPLES),
+        
+        # 最终过滤结果
+        expand(f"{FINAL_DIR}/{{tumor}}.snv.filtered.txt", tumor=TUMOR_SAMPLES),
+        expand(f"{FINAL_DIR}/{{tumor}}.snv.filter_summary.txt", tumor=TUMOR_SAMPLES),
 
         # 分析报告
         #f"{FINAL_DIR}/all_samples.genelist_filtered.txt"

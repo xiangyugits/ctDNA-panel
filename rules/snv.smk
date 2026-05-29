@@ -81,11 +81,11 @@ rule ctdna_comprehensive_filter:
     log:
         f"{LOG_DIR}/ctdna_comprehensive_filter_{{tumor}}.log"
     params:
-        min_af=config["filtering"]["snv"].get("min_vaf", 0.005),
-        min_tlod=config["filtering"]["snv"].get("min_tlod", 30),
-        min_depth=config["filtering"]["snv"].get("min_depth", 50),
-        min_mq=config["filtering"]["snv"].get("min_mq", 30),
-        min_ad=config["filtering"]["snv"].get("min_ad", 10)
+        min_af=config["filtering"]["snv"]['min_vaf'],
+        min_tlod=config["filtering"]["snv"]['min_tlod'],
+        min_depth=config["filtering"]["snv"]['min_depth'],
+        min_mq=config["filtering"]["snv"]['min_mq'],
+        min_ad=config["filtering"]["snv"]['min_ad']
     threads: 1
     resources:
         mem_mb=2000
