@@ -73,17 +73,31 @@ rule annotate_with_annovar:
             -thread {threads} \
             > {log} 2>&1
         """
+
+# ============================================================
+# 标准上报格式转换（3' rule + HGVS + ClinVar 风格）
+# ============================================================
+
 rule filter_by_genelist:
     """
-    根据基因列表筛选 ANNOVAR 注释结果，并格式化输出
-    输出格式：染色体、位置(3'rule)、基因(HGVS)、转录本(ClinVar)、
-             cHGVS、pHGVS、类型(SNV/Insertion/Deletion/Complex)、VAF(两位小数)
+    根据基因列表筛选 ANNOVAR 结果，转换为标准上报格式。
+
+    标准格式（12 列，TSV）：
+      样本编号 | Chr | Start | End | Ref | Alt | Gene |
+      Type | Transcript | cHGVS | pHGVS | VAF
+
+    报告规范：
+      - 3' rule：所有变异位点按靠近基因 3' 端表述
+      - Gene：HGVS 命名规则
+      - Transcript/cHGVS/pHGVS：参考 ClinVar 写法
+      - Type：SNV / Insertion / Deletion / Complex
+      - VAF：两位小数，无 %
     """
     input:
         multianno=f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.txt",
         gene_list=config["annotation"]["annovar"]["target_genes"]
     output:
-        filtered=f"{FINAL_DIR}/{{tumor}}.snv.genelist_filtered.txt"
+        standard_report=f"{FINAL_DIR}/{{tumor}}.snv.standard_report.txt"
     log:
         f"{LOG_DIR}/filter_genelist_{{tumor}}.log"
     params:
@@ -91,11 +105,44 @@ rule filter_by_genelist:
     shell:
         """
         python3 {params.script} \
-            --multianno {input.multianno} \
-            --gene-list {input.gene_list} \
-            --output {output.filtered} \
+            --multianno  {input.multianno} \
+            --gene-list  {input.gene_list} \
+            --output     {output.standard_report} \
+            --sample-name {wildcards.tumor} \
             > {log} 2>&1
         """
+
+
+# ============================================================
+# 最终临床报告：整合标准格式 + Tier 分级 → Excel
+# ============================================================
+
+rule make_final_report:
+    """
+    将标准格式变异结果导出为最终 Excel 临床报告。
+
+    输出 Excel 包含：
+      - Standard_Report sheet：所有变异（标准格式 + Tier 列）
+      - Tier 1/2/3/4 分 sheet（按临床分级）
+      - Summary sheet：统计摘要
+    """
+    input:
+        standard=f"{FINAL_DIR}/{{tumor}}.snv.standard_report.txt",
+    output:
+        final_excel=f"{FINAL_DIR}/{{tumor}}.snv.final_report.xlsx"
+    log:
+        f"{LOG_DIR}/make_final_report_{{tumor}}.log"
+    params:
+        script=os.path.join(SCRIPT_DIR, "make_final_report.py")
+    shell:
+        """
+        python3 {params.script} \
+            --input       {input.standard} \
+            --output      {output.final_excel} \
+            --sample-name {wildcards.tumor} \
+            > {log} 2>&1
+        """
+
 
 rule filter_annovar_variants:
     """
@@ -104,7 +151,7 @@ rule filter_annovar_variants:
     功能：
     - 保留功能性变异（exonic/splicing）
     - 过滤高人群频率变异（gnomAD EAS < 0.001）
-    - REVEL 评分过滤（错义突变需要 ≥ 0.5）
+    - REVEL 评分过滤（错义突变需要 >= 0.5）
     - 计算优先级分数（High/Medium/Low）
     - 只保留必要列
     """
@@ -242,9 +289,6 @@ rule filter_annovar_variants:
         
         # 合并（拒绝的排在后面）
         final_df = pd.concat([passed, rejected_sorted], ignore_index=True)
-        
-        # 删除临时列
-        #final_df = final_df.drop(columns=['eval'])
         
         # 保存结果
         final_df.to_csv(output.filtered, sep='\t', index=False)

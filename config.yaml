@@ -27,6 +27,8 @@ reference:
 
   # Panel 目标区域
   target_bed: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed.gz"
+  # panelcn.MOPS 需要非压缩 BED 文件（如果 target_bed 是 .gz，请另外提供解压版本）
+  target_bed_plain: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed"
   
   # 种系资源数据库
   #群体胚系变异资源（如gnomAD vcf），用于区分体细胞与胚系突变
@@ -64,15 +66,45 @@ filtering:
 
   # CNV 过滤
   cnv:
-    min_log2_abs: 0.3               # 最少 log2 比值
-    min_probes: 5                   # 最少连续探针数
-    max_ci: 1.0                     # 最大置信区间
+    min_log2_abs: 0.3               # 最少 log2 比值（CNVkit 用）
+    min_probes: 5                   # 最少连续探针数（CNVkit 用）
+    max_ci: 1.0                     # 最大置信区间（CNVkit 用）
+
+    # ── panelcn.MOPS 专用过滤参数（扩增子 Panel 推荐）──────────────
+    # 若未设置，以上 CNVkit 参数将作为默认值回退
+    panelcnmops_min_log2_abs:    0.3    # 基因级 |log2ratio| 最低阈值（建议同 CNVkit）
+    panelcnmops_min_amplicons:   2      # 基因内最少 amplicon 数（对应 min_probes）
+    panelcnmops_max_ci:          2.0    # CI 上限（panelcn.MOPS p值推算的 CI 尺度更大）
+    panelcnmops_min_cnv_fraction: 0.3   # 基因内 CNV amplicon 比例 >= 30%（防单点噪音）
+    panelcnmops_min_pvalue:      0.05   # 最高 p 值阈值（显著性过滤）
+    panelcnmops_alpha:           0.05   # panelcn.MOPS 内部检测显著性阈值
+    panelcnmops_min_rc:          1      # 每个 amplicon 最低 read count
     
   # SV 过滤
   sv:
     delly_sv_types: "DEL,DUP,INV,INS,TRA,BND"  # 检测的SV类型
     delly_min_mapq: 1                          # 最小比对质量
     delly_min_support: 1                        # 最小支持reads数
+
+    # ── 替代 SV 工具配置（扩增子 Panel 推荐）─────────────────
+    # GRIDSS2
+    gridss_blacklist: ""                        # 重复区域黑名单 BED（建议提供）
+    # SvABA
+    svaba_target_regions: ""                    # 靶向区域 BED（可选，默认用 target_bed）
+    svaba_min_mapq: 5                           # 最小比对质量
+    svaba_min_support: 2                        # 最小支持 reads 数
+    # 靶向融合检测
+    fusion_min_mapq: 20                         # 最小比对质量
+    fusion_min_support: 2                       # 最小支持 reads 数
+    fusion_flank: 500                           # BED 区域外扩 bp
+
+# ===== 工具路径配置 =====
+# 如果工具不在 PATH 中，在此处指定完整路径
+tools:
+  # panelcn.MOPS 所在 conda 环境的 Rscript
+  rscript: "~/DATA/miniconda3/envs/panelcnmops/bin/Rscript"
+  # CNVkit 路径（原有配置，集中管理）
+  cnvkit:  "~/DATA/miniconda3/envs/smk-ctdna/bin/cnvkit.py"
 
 annotation:
   annovar:

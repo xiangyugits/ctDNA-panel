@@ -61,33 +61,55 @@ rule all:
         # 最终变异结果
         expand(f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
         expand(f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
+
+        # ── panelcn.MOPS CNV（扩增子 Panel 推荐，取消注释以启用）──
+        # 使用前请确认：
+        #   3. config.yaml 中 tools.rscript 路径正确
+        #expand(f"{VAR_DIR}/cnv/panelcnmops/{{tumor}}.panelcnmops.gene.tsv",    tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/cnv/panelcnmops/{{tumor}}.panelcnmops.filtered.cns", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/cnv/panelcnmops/{{tumor}}.panelcnmops.report.txt",   tumor=TUMOR_SAMPLES),
         
-        #expand(f"{VAR_DIR}/sv/{{tumor}}.delly.done", tumor=TUMOR_SAMPLES),
+        # ── SV 检测（扩增子 Panel 推荐使用 SvABA + 靶向融合检测）──
+        #    将注释中的任意一行取消注释即可启用对应工具
+        #    推荐优先级：靶向融合 > SvABA > GRIDSS2 > Manta > Delly
+
+        # 靶向融合检测（专为扩增子 Panel 设计，推荐首选）
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.summary.txt", tumor=TUMOR_SAMPLES),
+
+        # SvABA（靶向测序专用，推荐次选）
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz", tumor=TUMOR_SAMPLES),
+
+        # GRIDSS2（assembly-based，备选）
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.gridss.vcf.gz", tumor=TUMOR_SAMPLES),
+
+        # Manta（已降阈值优化，备选）
         #expand(f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz", tumor=TUMOR_SAMPLES),
+
+        # Delly（已修复路径冲突，备选）
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.delly.done", tumor=TUMOR_SAMPLES),
+
+        # SV 汇总报告（运行前取消上面至少一个工具的注释）
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.sv.summary.txt", tumor=TUMOR_SAMPLES),
 
         # 注释和分类结果
         expand(f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.vcf", tumor=TUMOR_SAMPLES),
         
-        # 最终过滤结果
+        # 最终过滤结果（ANNOVAR 原始列筛选）
         expand(f"{FINAL_DIR}/{{tumor}}.snv.filtered.txt", tumor=TUMOR_SAMPLES),
         expand(f"{FINAL_DIR}/{{tumor}}.snv.filter_summary.txt", tumor=TUMOR_SAMPLES),
 
-        # 分析报告
-        #f"{FINAL_DIR}/all_samples.genelist_filtered.txt"
+        # ── 标准上报格式（3' rule + HGVS + ClinVar 风格）───────────
+        expand(f"{FINAL_DIR}/{{tumor}}.snv.standard_report.txt", tumor=TUMOR_SAMPLES),
 
-        #expand(f"{REPORT_DIR}/{{tumor}}_analysis_report.html", tumor=TUMOR_SAMPLES),
-        #f"{REPORT_DIR}/cohort_summary.html"
+        # ── 最终 Excel 临床报告（标准格式 + Tier 分级）────────────
+        expand(f"{FINAL_DIR}/{{tumor}}.snv.final_report.xlsx", tumor=TUMOR_SAMPLES),
 
 
 
 # ===================================================================
 # rules
 # ===================================================================
-
-#def get_normal_for_tumor(tumor_sample):
-#    """获取配对正常样本"""
-#    return NORMAL_SAMPLE
-
 
 include: "rules/qc.smk"
 include: "rules/align.smk"
