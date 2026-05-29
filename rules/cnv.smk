@@ -110,8 +110,7 @@ rule call_cnv_panelcnmops:
         normal_bam = f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         normal_bai = f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
         rscript    = os.path.join(SCRIPT_DIR, "run_panelcnmops.R"),
-        bed        = config["reference"].get("target_bed_plain",
-                         config["reference"]["target_bed"])
+        bed        = TARGET_BED
     output:
         tsv_raw    = f"{VAR_DIR}/cnv/panelcnmops/{{tumor}}/{{tumor}}.panelcnmops.tsv",
         tsv_all    = f"{VAR_DIR}/cnv/panelcnmops/{{tumor}}/{{tumor}}.panelcnmops.all.tsv",
