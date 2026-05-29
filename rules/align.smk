@@ -16,7 +16,6 @@ rule bwa_mem2_index:
     params:
         prefix=config["reference"]["bwa_mem2_index"]
     threads: 6
-    cache: True 
     resources:
         slurm_partition="q_fat",
         mem_mb=200000,
@@ -47,7 +46,7 @@ rule bwa_mem2_mem:
         bam=f"{BAM_DIR}/{{sample}}.raw.unsorted.bam"
     log:
         f"{LOG_DIR}/bwa_mem2_{{sample}}.log"
-    threads: 6
+    threads: config["resources"]["bwa_threads"]
     resources:
         slurm_partition="q_fat,q_fat_l",
         mem_mb=120000,
@@ -84,7 +83,7 @@ rule samtools_sort:
         flagstat=f"{QC_DIR}/{{sample}}_raw_flagstat.txt"
     log:
         f"{LOG_DIR}/sort_{{sample}}.log"
-    threads: 6
+    threads: config["resources"]["bwa_threads"]
     resources:
         slurm_partition="q_fat,q_fat_l",
         mem_mb=120000,
@@ -128,7 +127,7 @@ rule umi_dedup:
         method="directional",      # directional, unique, or percentile
         edit_distance=1,            # UMI 编辑距离阈值
         metrics=f"{QC_DIR}/{{sample}}_dedup_metrics"
-    threads: 6
+    threads: config["resources"]["umi_threads"]
     resources:
         slurm_partition="q_fat,q_fat_l",
         mem_mb=120000,

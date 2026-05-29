@@ -41,7 +41,7 @@ variant_calling:
   snv:
     tool: "mutect2"
     min_base_quality: 20
-    contamination_estimate: 0.0
+    contamination_estimate: 0.002
     
   # CNV 检测
   cnv:
@@ -83,8 +83,8 @@ filtering:
   # SV 过滤
   sv:
     delly_sv_types: "DEL,DUP,INV,INS,TRA,BND"  # 检测的SV类型
-    delly_min_mapq: 1                          # 最小比对质量
-    delly_min_support: 1                        # 最小支持reads数
+    delly_min_mapq: 20                          # 最小比对质量
+    delly_min_support: 3                        # 最小支持reads数
 
     # ── 替代 SV 工具配置（扩增子 Panel 推荐）─────────────────
     # GRIDSS2
@@ -105,6 +105,8 @@ tools:
   rscript: "~/DATA/miniconda3/envs/panelcnmops/bin/Rscript"
   # CNVkit 路径（原有配置，集中管理）
   cnvkit:  "~/DATA/miniconda3/envs/smk-ctdna/bin/cnvkit.py"
+  # GRIDSS2 jar 路径（assembly-based SV 检测）
+  gridss_jar: "/home/zhangli_lab/zhouxiangyu/DATA/software/gridss/gridss.jar"
 
 annotation:
   annovar:
@@ -132,9 +134,9 @@ annotation:
 resources:
   default_threads: 4
   default_memory_mb: 16000
-  bwa_threads: 16
+  bwa_threads: 6
   bwa_memory_mb: 32000
-  fgbio_threads: 8
+  umi_threads: 6
   fgbio_memory_mb: 32000
   mutect_threads: 8
   mutect_memory_mb: 32000

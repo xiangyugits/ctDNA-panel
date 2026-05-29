@@ -329,32 +329,3 @@ rule filter_annovar_variants:
             f.write(f"输入文件: {input.ann_txt}\n")
             f.write(f"输出文件: {output.filtered}\n")
             f.write(f"通过变异数: {len(passed)}\n")
-
-# ============================================================
-# 合并所有样本的过滤结果
-# ============================================================
-rule merge_filtered_variants:
-    """
-    合并所有样本的过滤结果
-    """
-    input:
-        expand(f"{FINAL_DIR}/filtered/{{tumor}}.snv.filtered.txt", tumor=config['samples'])
-    output:
-        merged=f"{FINAL_DIR}/filtered/all_samples.filtered.xlsx"
-    run:
-        import pandas as pd
-        
-        all_dfs = []
-        for f in input:
-            df = pd.read_csv(f, sep='\t')
-            all_dfs.append(df)
-        
-        merged_df = pd.concat(all_dfs, ignore_index=True)
-        
-        # 保存为 Excel（便于查看）
-        with pd.ExcelWriter(output.merged) as writer:
-            merged_df.to_excel(writer, sheet_name='All_Variants', index=False)
-            
-            # 添加优先级统计 sheet
-            priority_stats = merged_df['Priority'].value_counts().to_frame()
-            priority_stats.to_excel(writer, sheet_name='Priority_Stats')

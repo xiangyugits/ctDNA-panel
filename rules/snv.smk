@@ -19,7 +19,7 @@ rule call_snv_mutect2:
         stats=f"{VAR_DIR}/snv/{{tumor}}.mutect2.stats.tar.gz"
     log:
         f"{LOG_DIR}/mutect2_{{tumor}}.log"
-    threads: 6
+    threads: config["resources"]["mutect_threads"]
     resources:
         slurm_partition="q_fat,q_fat_l",
         mem_mb=120000
@@ -92,12 +92,12 @@ rule ctdna_comprehensive_filter:
     shell:
         """
         echo "=== ctDNA Filter: {wildcards.tumor} ===" > {log}
-        echo "Total: $(bcftools view -H {input.vcf} 2>/dev/null | wc -l)" >> {log}
-        echo "PASS:  $(bcftools view -f PASS -H {input.vcf} 2>/dev/null | wc -l)" >> {log}
+        echo "Total: $(bcftools view -H {input.vcf} 2>> {log} | wc -l)" >> {log}
+        echo "PASS:  $(bcftools view -f PASS -H {input.vcf} 2>> {log} | wc -l)" >> {log}
         echo "Params: AF>={params.min_af} DP>={params.min_depth} TLOD>={params.min_tlod} MMQ>={params.min_mq} AD>={params.min_ad}" >> {log}
         
         # 修正：所有 FORMAT 字段使用 [样本:子字段] 格式
-        bcftools view -f PASS {input.vcf} 2>/dev/null \
+        bcftools view -f PASS {input.vcf} 2>> {log} \
         | bcftools filter \
             -i "FORMAT/AF[0:0] >= {params.min_af} && \
                 FORMAT/DP[0:0] >= {params.min_depth} && \

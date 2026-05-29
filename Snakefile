@@ -15,7 +15,6 @@ from pathlib import Path
 configfile: "config.yaml"
 
 import snakemake
-snakemake.ancient = True
 
 
 # ===== 全局变量定义 =====
@@ -121,25 +120,23 @@ include: "rules/annovar.smk"
 
 
 # ===================================================================
-# 主程序入口
+# 运行时初始化（目录创建）
 # ===================================================================
-if __name__ == "__main__":
-    # 创建必要的输出目录
-    dirs_to_create = [
-        QC_DIR, CLEAN_DIR, RAW_BAM_DIR, UMI_DIR, FINAL_BAM_DIR,
-        VAR_DIR, FINAL_DIR, LOG_DIR, TMP_DIR, REPORT_DIR
-    ]
-    for dir_path in dirs_to_create:
-        os.makedirs(dir_path, exist_ok=True)
-    
-    # 创建变异子目录
-    for subdir in ["snv", "cnv", "sv"]:
-        os.makedirs(os.path.join(VAR_DIR, subdir), exist_ok=True)
-    
-    print("=" * 60)
-    print("ctDNA Panel Analysis Pipeline")
-    print("=" * 60)
-    print(f"Tumor samples: {', '.join(TUMOR_SAMPLES)}")
-    print(f"Normal sample: {NORMAL_SAMPLE}")
-    print(f"Output directory: {config['paths']['output_dir']}")
-    print("=" * 60)
+dirs_to_create = [
+    QC_DIR, CLEAN_DIR, BAM_DIR,
+    VAR_DIR, FINAL_DIR, LOG_DIR, TMP_DIR, REPORT_DIR
+]
+for dir_path in dirs_to_create:
+    os.makedirs(dir_path, exist_ok=True)
+
+# 创建变异子目录
+for subdir in ["snv", "cnv", "sv"]:
+    os.makedirs(os.path.join(VAR_DIR, subdir), exist_ok=True)
+
+print("=" * 60)
+print("ctDNA Panel Analysis Pipeline")
+print("=" * 60)
+print(f"Tumor samples: {', '.join(TUMOR_SAMPLES)}")
+print(f"Normal sample: {NORMAL_SAMPLE}")
+print(f"Output directory: {config['paths']['output_dir']}")
+print("=" * 60)

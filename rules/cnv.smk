@@ -14,7 +14,7 @@ rule call_cnv_cnvkit:
         tumor_bam=f"{BAM_DIR}/{{tumor}}.dedup.bam",
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         ref=REF_FASTA,
-        bed=config["reference"].get("target_bed_plain",config["reference"]["target_bed"])
+        bed=TARGET_BED
     output:
         cnr=f"{VAR_DIR}/cnv/{{tumor}}.cnr",
         cns=f"{VAR_DIR}/cnv/{{tumor}}.cns"
@@ -27,7 +27,7 @@ rule call_cnv_cnvkit:
     #    "envs/environment.yaml"
     shell:
         """
-        ~/DATA/miniconda3/envs/cnvkit/bin/cnvkit.py batch \
+        {config["tools"]["cnvkit"]} batch \
             {input.tumor_bam} \
             --normal {input.normal_bam} \
             --targets {input.bed} \

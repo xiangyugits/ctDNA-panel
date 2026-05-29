@@ -69,7 +69,18 @@ rule fastp_trim:
         
         # 记录过滤统计到日志
         echo "fastp filtering completed for {wildcards.sample}" >> {log}
-        grep "reads passed filter" {output.json} >> {log} || true
+        python3 -c "
+import json
+with open('{output.json}') as f:
+    d = json.load(f)
+    s = d.get('summary', {{}})
+    before = s.get('before_filtering', {{}})
+    after = s.get('after_filtering', {{}})
+    fr = d.get('filtering_result', {{}})
+    print(f'Before filtering: {{before.get(\"total_reads\", \"?\")}} reads')
+    print(f'After  filtering: {{after.get(\"total_reads\", \"?\")}} reads')
+    print(f'Passed: {{fr.get(\"passed_filter_reads\", \"?\")}}')
+" >> {log} || true
         """
 
 rule fastqc_clean:

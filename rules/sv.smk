@@ -1,6 +1,8 @@
 FILTERING = config["filtering"]
 SV_FILTER = FILTERING["sv"]
 SV_DIR = f"{VAR_DIR}/sv"
+GENOME = config["reference"]["genome"]
+GRIDSS_JAR = config["tools"]["gridss_jar"]
 
 # ============================================
 # Rule 1: Delly 结构变异检测 (v0.8.x 语法)
@@ -475,7 +477,7 @@ rule call_sv_gridss:
             --assembly {output.assembly_bam} \\
             --threads {threads} \\
             --workingdir {params.tmp_dir} \\
-            --jar /path/to/gridss.jar"
+            --jar {GRIDSS_JAR}"
 
         # 如果有黑名单 BED，加入过滤
         if [ -n "{params.blacklist}" ] && [ -f "{params.blacklist}" ]; then
@@ -539,7 +541,7 @@ rule call_sv_svaba:
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         normal_bai=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
         ref=REF_FASTA,
-        bed=target_bed_plain
+        bed=TARGET_BED
     output:
         sv_vcf=f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz",
         sv_tbi=f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz.tbi",
@@ -636,7 +638,7 @@ rule call_sv_fusion_targeted:
     input:
         tumor_bam=f"{BAM_DIR}/{{tumor}}.dedup.bam",
         tumor_bai=f"{BAM_DIR}/{{tumor}}.dedup.bam.bai",
-        bed=target_bed_plain,
+        bed=TARGET_BED,
         script=os.path.join(SCRIPT_DIR, "detect_fusions.py")
     output:
         fusions_tsv=f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv",
@@ -703,9 +705,10 @@ rule sv_summary_report:
         delly_vcf=f"{SV_DIR}/{{tumor}}.delly.targeted.vcf.gz",
         delly_tbi=f"{SV_DIR}/{{tumor}}.delly.targeted.vcf.gz.tbi",
         manta_vcf=f"{SV_DIR}/{{tumor}}.manta.vcf.gz",
-        gridss_vcf=f"{SV_DIR}/{{tumor}}.gridss.vcf.gz",
         svaba_vcf=f"{SV_DIR}/{{tumor}}.svaba.sv.vcf.gz",
         fusions_tsv=f"{SV_DIR}/{{tumor}}.fusions.tsv"
+    params:
+        gridss_vcf=f"{SV_DIR}/{{tumor}}.gridss.vcf.gz"
     output:
         report=f"{SV_DIR}/{{tumor}}.sv.summary.txt"
     log:
@@ -721,7 +724,7 @@ rule sv_summary_report:
         tools = {
             "Delly":   input.delly_vcf,
             "Manta":   input.manta_vcf,
-            "GRIDSS2": input.gridss_vcf,
+            "GRIDSS2": params.gridss_vcf,
             "SvABA":   input.svaba_vcf,
         }
         
