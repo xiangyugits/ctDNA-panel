@@ -95,7 +95,8 @@ rule filter_by_genelist:
     """
     input:
         multianno=f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.txt",
-        gene_list=config["annotation"]["annovar"]["target_genes"]
+        gene_list=config["annotation"]["annovar"]["target_genes"],
+        vcf=f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz"
     output:
         standard_report=f"{FINAL_DIR}/{{tumor}}.snv.standard_report.txt"
     log:
@@ -105,10 +106,11 @@ rule filter_by_genelist:
     shell:
         """
         python3 {params.script} \
-            --multianno  {input.multianno} \
-            --gene-list  {input.gene_list} \
-            --output     {output.standard_report} \
+            --multianno   {input.multianno} \
+            --gene-list   {input.gene_list} \
+            --output      {output.standard_report} \
             --sample-name {wildcards.tumor} \
+            --vcf         {input.vcf} \
             > {log} 2>&1
         """
 

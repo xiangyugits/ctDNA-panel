@@ -383,8 +383,8 @@ rule call_sv_manta:
         CONFIG_FILE="{params.run_dir}/configManta.py.ini"
         if [ -f "$CONFIG_FILE" ]; then
             # 大幅降低阈值以适应扩增子 Panel
-            sed -i 's/minHqPairThreshold[ ]*=[ ]*[0-9]\+/minHqPairThreshold = 3/g' $CONFIG_FILE
-            sed -i 's/minHqMapq[ ]*=[ ]*[0-9]\+/minHqMapq = 5/g' $CONFIG_FILE
+            sed -i -E 's/minHqPairThreshold[ ]*=[ ]*[0-9]+/minHqPairThreshold = 3/g' $CONFIG_FILE
+            sed -i -E 's/minHqMapq[ ]*=[ ]*[0-9]+/minHqMapq = 5/g' $CONFIG_FILE
             # 扩张候选区域
             echo "isSkipAlignmentStats = 1" >> $CONFIG_FILE
             echo "minCandidateRegionSize = 10" >> $CONFIG_FILE
@@ -539,7 +539,7 @@ rule call_sv_svaba:
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         normal_bai=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
         ref=REF_FASTA,
-        bed=TARGET_BED
+        bed=target_bed_plain
     output:
         sv_vcf=f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz",
         sv_tbi=f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz.tbi",
@@ -565,14 +565,16 @@ rule call_sv_svaba:
         echo "========================================" >> {log}
 
         # 构建 SvABA 命令
-        SVABA_CMD="svaba run \\
+        # 注：SvABA 无 --min-sc-reads / --num-sv-reads 参数
+        #     灵敏度由 -L (mate-lookup-min, default 3) 和 LOD 阈值控制
+        SVABA_CMD="~/DATA/miniconda3/envs/svaba/bin/svaba run \\
             -t {input.tumor_bam} \\
             -n {input.normal_bam} \\
             -G {input.ref} \\
             -a {params.prefix} \\
             -p {threads} \\
-            --germline-sv-database /dev/null \\
-            --num-sv-reads {params.min_read_support}"
+            -L {params.min_read_support} \\
+            --germline-sv-database /dev/null"
 
         # 若提供靶向区域 BED，限制检测范围
         if [ -n "{params.target_regions}" ] && [ -f "{params.target_regions}" ]; then
@@ -634,7 +636,7 @@ rule call_sv_fusion_targeted:
     input:
         tumor_bam=f"{BAM_DIR}/{{tumor}}.dedup.bam",
         tumor_bai=f"{BAM_DIR}/{{tumor}}.dedup.bam.bai",
-        bed=TARGET_BED,
+        bed=target_bed_plain,
         script=os.path.join(SCRIPT_DIR, "detect_fusions.py")
     output:
         fusions_tsv=f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv",

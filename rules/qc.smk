@@ -59,6 +59,9 @@ rule fastp_trim:
             --json {output.json} \
             --thread {threads} \
             --detect_adapter_for_pe \
+            --adapter_sequence AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
+            --adapter_sequence_r2 AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
+            --trim_poly_g \
             --length_required 50 \
             --average_qual 20 \
             --n_base_limit 5 \

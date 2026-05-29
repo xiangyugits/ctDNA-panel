@@ -26,9 +26,9 @@ reference:
   bwa_mem2_index: "/home/zhangli_lab/zhouxiangyu/DATA/genome/human/hg19/bwa-mem2/hg19"
 
   # Panel 目标区域
-  target_bed: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed.gz"
+  target_bedGZ: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed.gz"
   # panelcn.MOPS 需要非压缩 BED 文件（如果 target_bed 是 .gz，请另外提供解压版本）
-  target_bed_plain: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed"
+  target_bed: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed"
   
   # 种系资源数据库
   #群体胚系变异资源（如gnomAD vcf），用于区分体细胞与胚系突变

@@ -40,6 +40,7 @@ REPORT_DIR = os.path.join(OUTPUT_DIR, "reports")
 # 参考文件
 REF_FASTA = config["reference"]["fasta"]
 TARGET_BED = config["reference"]["target_bed"]
+TARGET_BEDGZ = config["reference"]["target_bedGZ"]
 
 
 #import ipdb;ipdb.set_trace()
@@ -74,8 +75,8 @@ rule all:
         #    推荐优先级：靶向融合 > SvABA > GRIDSS2 > Manta > Delly
 
         # 靶向融合检测（专为扩增子 Panel 设计，推荐首选）
-        #expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv", tumor=TUMOR_SAMPLES),
-        #expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.summary.txt", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.summary.txt", tumor=TUMOR_SAMPLES),
 
         # SvABA（靶向测序专用，推荐次选）
         #expand(f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz", tumor=TUMOR_SAMPLES),

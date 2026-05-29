@@ -143,6 +143,13 @@ srun -p q_cn bgzip loci.bed
 srun -p q_cn tabix -p bed loci.bed
 srun -p q_cn gatk CreateSequenceDictionary -R hg19.fa -O hg19.dict
 
+
+conda create -n panelcnmops r-base=4.3
+conda activate panelcnmops
+conda install -c conda-forge r-optparse
+Rscript -e "install.packages('BiocManager'); BiocManager::install('panelcn.MOPS')"
+
+
 ```
 
 

@@ -17,6 +17,7 @@ filter_by_genelist.py - 根据基因列表筛选 ANNOVAR 结果并转换为标�
 import pandas as pd
 import argparse
 import re
+import subprocess
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 
@@ -255,6 +256,137 @@ def format_vaf(vaf_value) -> str:
 
 
 # ============================================================
+# VAF 从 VCF 提取
+# ============================================================
+
+def extract_vaf_from_vcf(
+    vcf_path: str,
+    tumor_sample: Optional[str] = None,
+    min_af: float = 0.0
+) -> Dict[tuple, float]:
+    """
+    从 Mutect2 VCF 中提取变异 AF，构建 (Chr, Pos, Ref, Alt) → AF 的查找字典。
+
+    使用 bcftools query 提取 FORMAT/AF 字段，合并多重等位基因记录。
+
+    Args:
+        vcf_path: VCF 文件路径（支持 .vcf.gz）
+        tumor_sample: tumor 样本名（用于 --samples 指定样本列）
+        min_af: 最小 AF 阈值（低于此值的记录不保留）
+
+    Returns:
+        Dict[(chr, pos, ref, alt), af]: 查找字典
+    """
+    vcf_lookup = {}
+
+    cmd = ["bcftools", "query"]
+    if tumor_sample:
+        cmd += ["--samples", tumor_sample]
+    cmd += [
+        "-f", "%CHROM\t%POS\t%REF\t%ALT[\t%AF]\n",
+        str(vcf_path)
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        if result.returncode != 0:
+            print(f"[WARN] bcftools query failed: {result.stderr.strip()}")
+            # 尝试在已知路径查找 bcftools
+            for bcftools_path in [
+                "bcftools",
+                "/usr/local/bin/bcftools",
+                "/opt/conda/bin/bcftools",
+                f"{Path.home()}/DATA/miniconda3/envs/bioinfo/bin/bcftools"
+            ]:
+                fallback_cmd = [bcftools_path, "query"]
+                if tumor_sample:
+                    fallback_cmd += ["--samples", tumor_sample]
+                fallback_cmd += ["-f", "%CHROM\t%POS\t%REF\t%ALT[\t%AF]\n", str(vcf_path)]
+                result2 = subprocess.run(
+                    fallback_cmd,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                if result2.returncode == 0:
+                    result = result2
+                    print(f"[INFO] Found bcftools at: {bcftools_path}")
+                    break
+
+        for line in result.stdout.strip().split("\n"):
+            if not line.strip():
+                continue
+            parts = line.strip().split("\t")
+            if len(parts) < 5:
+                continue
+            # 多样本 VCF：%AF 每个样本输出一列，取第一个样本（tumor）
+            chrom = parts[0]
+            pos = parts[1]
+            ref = parts[2]
+            alt_raw = parts[3]
+            af_raw = parts[4]
+
+            # 标准化染色体名（去除 chr 前缀）
+            chrom = chrom.replace("chr", "").replace("Chr", "")
+
+            # 跳过 ALF=.
+            if af_raw == ".":
+                continue
+
+            # 多重等位基因：ALT 可能是逗号分隔，AF 也是逗号分隔
+            alts = alt_raw.split(",")
+            afs = af_raw.split(",")
+
+            # 如果 AF 数量与 ALT 不匹配（旧版 Mutect2 单值），取第一个
+            if len(afs) == 1 and len(alts) > 1:
+                afs = [afs[0]] * len(alts)
+
+            for alt, af_str in zip(alts, afs):
+                # 跳过参考等位基因、结构符号
+                if alt in (".", "<NON_REF>", "*"):
+                    continue
+                try:
+                    af = float(af_str)
+                    if af < min_af:
+                        continue
+                    pos_int = int(pos)
+                    # 生成多组归一化 key，覆盖 VCF padding 和 ANNOVAR '0' 两种惯例
+                    keys_to_add = [
+                        # 1) 原始 VCF key（含 1bp padding）
+                        (chrom, pos_int, ref, alt),
+                    ]
+                    # 2) 剥离前导共享碱基（两种坐标变体）
+                    shared = 0
+                    for r, a in zip(ref, alt):
+                        if r == a:
+                            shared += 1
+                        else:
+                            break
+                    if shared > 0:
+                        norm_ref = ref[shared:]
+                        norm_alt = alt[shared:]
+                        # 2a) 坐标不变（匹配 ANNOVAR 插入位点惯例）
+                        keys_to_add.append((chrom, pos_int, norm_ref, norm_alt))
+                        # 2b) 坐标后移 shared（匹配 ANNOVAR 缺失位点惯例）
+                        keys_to_add.append((chrom, pos_int + shared, norm_ref, norm_alt))
+                    for vcf_key in keys_to_add:
+                        if vcf_key not in vcf_lookup or af > vcf_lookup[vcf_key]:
+                            vcf_lookup[vcf_key] = af
+                except (ValueError, IndexError):
+                    continue
+
+    except FileNotFoundError:
+        print(f"[WARN] bcftools not found; cannot extract VAF from VCF")
+    except Exception as e:
+        print(f"[WARN] VAF extraction failed: {e}")
+
+    print(f"[INFO] VAF entries extracted from VCF: {len(vcf_lookup)}")
+    return vcf_lookup
+
+
+# ============================================================
 # 主处理函数
 # ============================================================
 
@@ -263,10 +395,16 @@ def filter_and_format(
     gene_list_file: str,
     output_file: str,
     sample_name: Optional[str] = None,
-    vaf_col_override: Optional[str] = None
+    vaf_col_override: Optional[str] = None,
+    vcf_file: Optional[str] = None
 ):
     """
     主流程：读入 ANNOVAR 结果 → 基因列表筛选 → 标准上报格式输出
+
+    VAF 来源优先级：
+      1. --vaf-col 指定的列
+      2. --vcf 提供的 VCF 文件（提取 FORMAT/AF）
+      3. 自动检测 multianno 中的列
     """
     # ===== 读取基因列表 =====
     if not Path(gene_list_file).exists():
@@ -317,6 +455,13 @@ def filter_and_format(
         sample_name = Path(multianno_file).stem
         sample_name = re.sub(r'\.snv\.hg19_multianno$', '', sample_name)
         sample_name = re.sub(r'\.hg19_multianno$', '', sample_name)
+
+    # ===== 从 VCF 构建 VAF 查找 =====
+    vcf_vaf_lookup = None
+    if vcf_file and Path(vcf_file).exists():
+        vcf_vaf_lookup = extract_vaf_from_vcf(vcf_file, tumor_sample=sample_name)
+    elif vcf_file:
+        print(f"[WARN] VCF not found: {vcf_file}, VAF will be missing")
 
     # ===== 构建输出行 =====
     output_columns = [
@@ -414,8 +559,23 @@ def filter_and_format(
 
             # --- VAF ---
             vaf_raw = '.'
+            # 优先级 1: --vaf-col 显式指定
             if vaf_col_override and vaf_col_override in row.index:
                 vaf_raw = row[vaf_col_override]
+            # 优先级 2: VCF 提取的 AF
+            elif vcf_vaf_lookup is not None:
+                # 归一化 REF/ALT：ANNOVAR 用 '0' 表示无碱基
+                norm_ref = '' if ref == '0' else ref
+                norm_alt = '' if alt == '0' else alt
+                # 先尝试原始 key，再尝试归一化 key
+                for candidate_key in [
+                    (chrom, original_start, ref, alt),
+                    (chrom, original_start, norm_ref, norm_alt),
+                ]:
+                    if candidate_key in vcf_vaf_lookup:
+                        vaf_raw = vcf_vaf_lookup[candidate_key]
+                        break
+            # 优先级 3: multianno 自动检测
             elif col_map.get('vaf') and col_map['vaf'] in row.index:
                 vaf_raw = row[col_map['vaf']]
 
@@ -634,6 +794,8 @@ Examples:
                         help="Sample identifier (auto-detected from filename if not specified)")
     parser.add_argument("--vaf-col", default=None,
                         help="VAF column name override (auto-detected if not specified)")
+    parser.add_argument("--vcf", default=None,
+                        help="Mutect2 VCF file to extract FORMAT/AF as VAF source (recommended)")
 
     args = parser.parse_args()
 
@@ -642,7 +804,8 @@ Examples:
         gene_list_file=args.gene_list,
         output_file=args.output,
         sample_name=args.sample_name,
-        vaf_col_override=args.vaf_col
+        vaf_col_override=args.vaf_col,
+        vcf_file=args.vcf
     )
 
 

@@ -14,7 +14,7 @@ rule call_cnv_cnvkit:
         tumor_bam=f"{BAM_DIR}/{{tumor}}.dedup.bam",
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         ref=REF_FASTA,
-        bed="/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/target.bed"
+        bed=config["reference"].get("target_bed_plain",config["reference"]["target_bed"])
     output:
         cnr=f"{VAR_DIR}/cnv/{{tumor}}.cnr",
         cns=f"{VAR_DIR}/cnv/{{tumor}}.cns"
