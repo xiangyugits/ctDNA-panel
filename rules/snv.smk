@@ -28,17 +28,21 @@ rule call_snv_mutect2:
         tmp_dir=TMP_DIR
     shell:
         """
-        gatk --java-options "-Xmx{resources.mem_mb}m -Djava.io.tmpdir={params.tmp_dir}" \
-            Mutect2 \
-            --reference {input.ref} \
-            --input {input.tumor_bam} \
-            --input {input.normal_bam} \
-            --normal-sample {params.normal_name} \
-            --germline-resource {input.germline} \
-            --intervals {input.bed} \
-            --f1r2-tar-gz {output.stats} \
-            --output {output.vcf} \
-            > {log} 2>&1
+    gatk --java-options "-Xmx{resources.mem_mb}m -Djava.io.tmpdir={params.tmp_dir}" \
+        Mutect2 \
+        --reference {input.ref} \
+        --input {input.tumor_bam} \
+        --input {input.normal_bam} \
+        --normal-sample {params.normal_name} \
+        --germline-resource {input.germline} \
+        --intervals {input.bed} \
+        --f1r2-tar-gz {output.stats} \
+        --output {output.vcf} \
+        --dont-use-soft-clipped-bases true \
+        --max-reads-per-alignment-start 0 \
+        --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+        --max-mnp-distance 0 \
+        > {log} 2>&1
         """
 
 rule learn_read_orientation:

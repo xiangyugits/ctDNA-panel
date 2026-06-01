@@ -13,6 +13,7 @@ parse_panelcnmops.py
 """
 
 import argparse
+import re
 import sys
 import math
 from pathlib import Path
@@ -151,6 +152,17 @@ def aggregate_by_gene(rows):
             gene = f"{row['chr']}:{row['start']}-{row['end']}"
         gene_rows[gene].append(row)
 
+    # 检测基因名是否像坐标格式（如 chr1:100-200），若是则警告用户
+    coord_pattern = re.compile(r'^chr[0-9XYM]+:[0-9]+[-:][0-9]+')
+    coord_like_genes = [g for g in gene_rows if coord_pattern.match(g)]
+    if len(coord_like_genes) > max(1, len(gene_rows) * 0.3):
+        print(
+            f"  WARNING: 检测到 {len(coord_like_genes)}/{len(gene_rows)} 个基因名疑似坐标格式 "
+            f"(如 chr1:100-200)，基因级聚合可能无效。\n"
+            f"  建议: 使用 --gene-annotation 参数或在 run_panelcnmops.R 中提供基因注释文件。",
+            file=sys.stderr
+        )
+
     results = []
     for gene, amplist in sorted(gene_rows.items()):
         n_total = len(amplist)
@@ -255,10 +267,13 @@ def write_cns_compat(gene_results, output_file: str):
     with open(output_file, "w") as fh:
         fh.write(header + "\n")
         for r in gene_results:
-            # CI 近似：p 值越大（越不确定），CI 越宽
-            # 映射规则：p=0.05 → CI=0.5，p=1.0 → CI=2.0，p=0.001 → CI=0.1
+            # CI 估算：p 值越小（越显著），置信区间越窄
+            # ci ∝ 1 / (-log10(p) + 0.5)，统计学直觉：
+            #   p 值的负对数 ≈ Z-score 比例 → CI 宽度与之成反比
+            # 典型值：p=1e-4→CI≈0.22, p=0.01→CI≈0.40, p=0.05→CI≈0.55, p=0.5→CI≈1.25
             pv = max(r["min_pvalue"], 1e-300)
-            ci_approx = round(-0.5 * math.log10(pv) ** 0.3 + 2.0, 3)
+            neg_log_p = -math.log10(pv)
+            ci_approx = round(1.0 / (neg_log_p + 0.5), 3)
             ci_approx = max(0.05, min(ci_approx, 5.0))  # 限制在合理范围
 
             row = [

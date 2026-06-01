@@ -17,11 +17,13 @@
 # =============================================================================
 
 suppressPackageStartupMessages({
-  library(panelcn.MOPS)
+  library(panelcn.mops)
   library(GenomicRanges)
   library(Rsamtools)
   library(BiocParallel)
   library(optparse)
+  library(Rsubread)
+
 })
 
 # =============================================================================
@@ -47,6 +49,8 @@ option_list <- list(
               help="CNV 检测显著性阈值 [默认: 0.05]"),
   make_option("--threads",      type="integer",   dest="threads",   default=4,
               help="并行线程数 [默认: 4]"),
+  make_option("--gene-annotation", type="character", dest="gene_annotation", default="",
+              help="基因注释 BED 文件（chr start end gene_name），用于将 amplicon 坐标映射到基因名；若不提供则直接使用 target BED 第4列"),
   make_option("--log",          type="character", dest="log",       default="",
               help="日志输出文件（留空则输出到 stderr）")
 )
@@ -125,6 +129,46 @@ colnames(bed4) <- c("chr", "start", "end", "name")
 # 确保 chr 前缀统一（panelcn.MOPS 内部用 chr 前缀）
 if (!grepl("^chr", bed4$chr[1])) {
   bed4$chr <- paste0("chr", bed4$chr)
+}
+
+# -------------------------------------------------------------------------
+# 可选：加载基因注释文件，替换 BED 第4列（坐标 → 基因名）
+# -------------------------------------------------------------------------
+if (nchar(opt$gene_annotation) > 0 && file.exists(opt$gene_annotation)) {
+  log_msg(sprintf("  加载基因注释: %s", opt$gene_annotation))
+  annot <- read.table(opt$gene_annotation, header=FALSE, sep="\t",
+                      stringsAsFactors=FALSE, comment.char="#")
+  if (ncol(annot) >= 4) {
+    colnames(annot)[1:4] <- c("chr", "start", "end", "gene")
+    if (!grepl("^chr", annot$chr[1])) {
+      annot$chr <- paste0("chr", annot$chr)
+    }
+    # 构建 坐标 → 基因名 映射（按区域重叠匹配）
+    # 策略：若 annotation 和 BED 坐标完全一致则直接按位置索引；
+    #       否则按 chr + 重叠区域匹配最近基因
+    coord_key_bed  <- paste0(bed4$chr, ":", bed4$start, "-", bed4$end)
+    coord_key_ann  <- paste0(annot$chr, ":", annot$start, "-", annot$end)
+    coord_to_gene  <- setNames(annot$gene, coord_key_ann)
+    matched_genes  <- coord_to_gene[coord_key_bed]
+    n_matched      <- sum(!is.na(matched_genes))
+    log_msg(sprintf("  基因注释匹配: %d / %d amplicons", n_matched, nrow(bed4)))
+    if (n_matched < nrow(bed4) * 0.5) {
+      log_msg("  WARNING: 基因注释匹配率低于 50%，请检查 annotation BED 是否与 target BED 一致",
+              "WARNING")
+    }
+    # 未匹配的保留原始名称
+    matched_genes[is.na(matched_genes)] <- bed4$name[is.na(matched_genes)]
+    bed4$name <- matched_genes
+  } else {
+    log_msg("  WARNING: 基因注释文件列数不足（需要 4 列: chr start end gene）", "WARNING")
+  }
+}
+
+# 检测 BED 第4列是否像坐标（chr:start-end），若是则发出警告
+sample_names_head <- bed4$name[1:min(5, nrow(bed4))]
+coord_like <- grepl("^chr[0-9XYM]+:[0-9]+[-:][0-9]+", sample_names_head)
+if (sum(coord_like) >= 2) {
+  log_msg("  WARNING: BED 第4列看起来是坐标格式而非基因名。这将导致每个 amplicon 被视为独立'基因'，基因级聚合无法正常工作。建议使用 --gene-annotation 参数提供基因注释文件。", "WARNING")
 }
 
 # 写出临时标准化 BED（panelcn.MOPS 从文件读取）
@@ -249,7 +293,7 @@ out_df <- data.frame(
   end              = end(rowRanges(result)),
   gene             = as.character(rowRanges(result)$names),
   CN               = as.integer(amplicon_res$CN),
-  log2ratio        = log2(pmax(amplicon_res$CN, 0.01) / 2),   # log2(CN/2) 与 CNVkit 格式对齐
+  log2ratio        = log2(pmax(amplicon_res$RC / pmax(amplicon_res$medRC, 1), 0.01)),   # 真实 depth ratio，保留连续信息
   RC_tumor         = amplicon_res$RC,
   RC_normal_mean   = amplicon_res$medRC,
   RC_normalized    = amplicon_res$RC / pmax(amplicon_res$medRC, 1),

@@ -40,7 +40,7 @@ REPORT_DIR = os.path.join(OUTPUT_DIR, "reports")
 REF_FASTA = config["reference"]["fasta"]
 TARGET_BED = config["reference"]["target_bed"]
 TARGET_BEDGZ = config["reference"]["target_bedGZ"]
-
+target_bed_SV = config["reference"]["target_bed_SV"]
 
 #import ipdb;ipdb.set_trace()
 
@@ -53,14 +53,16 @@ wildcard_constraints:
 rule all:
     """最终输出目标"""
     input:
+        expand(f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
         # BWA-MEM2 索引文件（确保索引存在）
         #f"{config['reference']['bwa_mem2_index']}.0123", 
         # 质控报告
-        expand(f"{QC_DIR}/multiqc_report.html"),
+        #expand(f"{QC_DIR}/multiqc_report.html"),
             
         # 最终变异结果
-        expand(f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
-        expand(f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
 
         # ── panelcn.MOPS CNV（扩增子 Panel 推荐，取消注释以启用）──
         # 使用前请确认：
@@ -78,13 +80,13 @@ rule all:
         expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.summary.txt", tumor=TUMOR_SAMPLES),
 
         # SvABA（靶向测序专用，推荐次选）
-        #expand(f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # GRIDSS2（assembly-based，备选）
         #expand(f"{VAR_DIR}/sv/{{tumor}}.gridss.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # Manta（已降阈值优化，备选）
-        #expand(f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz", tumor=TUMOR_SAMPLES),
+        expand(f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # Delly（已修复路径冲突，备选）
         #expand(f"{VAR_DIR}/sv/{{tumor}}.delly.done", tumor=TUMOR_SAMPLES),
@@ -93,17 +95,17 @@ rule all:
         #expand(f"{VAR_DIR}/sv/{{tumor}}.sv.summary.txt", tumor=TUMOR_SAMPLES),
 
         # 注释和分类结果
-        expand(f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.vcf", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/annovar/{{tumor}}.snv.hg19_multianno.vcf", tumor=TUMOR_SAMPLES),
         
         # 最终过滤结果（ANNOVAR 原始列筛选）
-        expand(f"{FINAL_DIR}/{{tumor}}.snv.filtered.txt", tumor=TUMOR_SAMPLES),
-        expand(f"{FINAL_DIR}/{{tumor}}.snv.filter_summary.txt", tumor=TUMOR_SAMPLES),
+        #expand(f"{FINAL_DIR}/{{tumor}}.snv.filtered.txt", tumor=TUMOR_SAMPLES),
+        #expand(f"{FINAL_DIR}/{{tumor}}.snv.filter_summary.txt", tumor=TUMOR_SAMPLES),
 
         # ── 标准上报格式（3' rule + HGVS + ClinVar 风格）───────────
-        expand(f"{FINAL_DIR}/{{tumor}}.snv.standard_report.txt", tumor=TUMOR_SAMPLES),
+        #expand(f"{FINAL_DIR}/{{tumor}}.snv.standard_report.txt", tumor=TUMOR_SAMPLES),
 
         # ── 最终 Excel 临床报告（标准格式 + Tier 分级）────────────
-        expand(f"{FINAL_DIR}/{{tumor}}.snv.final_report.xlsx", tumor=TUMOR_SAMPLES),
+        #expand(f"{FINAL_DIR}/{{tumor}}.snv.final_report.xlsx", tumor=TUMOR_SAMPLES),
 
 
 
@@ -111,8 +113,8 @@ rule all:
 # rules
 # ===================================================================
 
-include: "rules/qc.smk"
-include: "rules/align.smk"
+#include: "rules/qc.smk"
+#include: "rules/align.smk"
 include: "rules/snv.smk"
 include: "rules/cnv.smk"
 include: "rules/sv.smk"

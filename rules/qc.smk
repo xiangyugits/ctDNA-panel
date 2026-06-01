@@ -46,8 +46,6 @@ rule fastp_trim:
     log:
         f"{LOG_DIR}/fastp_{{sample}}.log"
     threads: config["resources"]["default_threads"]
-    #conda:
-    #    "envs/environment.yaml"
     shell:
         """
         fastp \
@@ -60,12 +58,21 @@ rule fastp_trim:
             --thread {threads} \
             --detect_adapter_for_pe \
             --adapter_sequence AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
-            --adapter_sequence_r2 AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
+            --adapter_sequence_r2 AGATCGGAAGCGTCGTGTAGGGAAAGAGTGT \
             --trim_poly_g \
-            --length_required 50 \
+            --trim_poly_x \
+            --cut_tail \
+            --cut_tail_window_size 4 \
+            --cut_tail_mean_quality 20 \
+            --overlap_len_require 15 \
+            --overlap_diff_limit 5 \
+            --correction \
+            --length_required 56 \
             --average_qual 20 \
             --n_base_limit 5 \
-            2> {log}
+            --unpaired1 {output.r1}.unpaired.fq \
+            --unpaired2 {output.r2}.unpaired.fq \
+            2>> {log}
         
         # 记录过滤统计到日志
         echo "fastp filtering completed for {wildcards.sample}" >> {log}
@@ -96,8 +103,6 @@ rule fastqc_clean:
     threads: 2
     params:
         outdir=QC_DIR
-    #conda:
-    #    "envs/environment.yaml"
     shell:
         """
         fastqc \
@@ -127,7 +132,7 @@ rule extract_umis:
     log:
         f"{LOG_DIR}/umi_extract_{{sample}}.log"
     params:
-        pattern=lambda wildcards: r'(?P<umi_1>.{6})T.*'
+        pattern=lambda wildcards: r'(?P<umi_1>.{6})'
     threads: config["resources"]["default_threads"]
     shell:
         """

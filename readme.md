@@ -144,10 +144,27 @@ srun -p q_cn tabix -p bed loci.bed
 srun -p q_cn gatk CreateSequenceDictionary -R hg19.fa -O hg19.dict
 
 
-conda create -n panelcnmops r-base=4.3
+mamba create -n panelcnmops bioconda::bioconductor-panelcn.mops
+
+mamba install conda-forge::r-optparse
 conda activate panelcnmops
-conda install -c conda-forge r-optparse
-Rscript -e "install.packages('BiocManager'); BiocManager::install('panelcn.MOPS')"
+mamba install bioconda::bioconductor-rsubread
+
+python3 scripts/prepare_gene_annotation.py \
+    --target-bed /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed \
+    --refgene    /home/zhangli_lab/zhouxiangyu/DATA/software/annovar/humandb/hg19_refGene.txt \
+    --output     /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/gene_annotation.bed
+
+
+pak::pak("bioinf-jku/panelcn.mops") 
+```
+
+## test
+```sh
+snakemake -j20 \
+--snakefile /home/zhangli_lab/zhouxiangyu/DATA/workflow/ctDNA-panel/Snakefile \
+--configfile config.yaml --rerun-triggers mtime \
+--profile slurm -np
 
 
 ```
@@ -169,18 +186,36 @@ module load manta
 module load bcftools
 
 
+
+
+
+
 snakemake -j20 \
 --snakefile /home/zhangli_lab/zhouxiangyu/DATA/workflow/ctDNA-panel/Snakefile \
 --configfile /home/zhangli_lab/zhouxiangyu/DATA/workflow/ctDNA-panel/config.yaml \
 --profile slurm -np
 
 
+
 ```
 
+```sh
 
+mkdir -p /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results/variants/cnv/panelcnmops/202611
 
+~/DATA/miniconda3/envs/panelcnmops/bin/Rscript /home/zhangli_lab/zhouxiangyu/DATA/workflow/ctDNA-panel/scripts/run_panelcnmops.R \
+--tumor-bam \
+/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results/bam/202611.dedup.bam \
+--normal-bam   /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results/bam/NC.dedup.bam \
+--target-bed   /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed \
+--sample-name  202611 \
+--output-dir   /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results/variants/cnv/panelcnmops/202611 \
+--genome hg19 \
+--min-rc 1 --alpha 0.05 --threads 4 \
+--gene-annotation /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/gene_annotation.bed \
+--log /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results/logs/panelcnmops_call_202611.log  2>> /home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/results/logs/panelcnmops_call_202611.log
 
-
+```
 
 
 

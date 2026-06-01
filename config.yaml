@@ -29,6 +29,7 @@ reference:
   target_bedGZ: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed.gz"
   # panelcn.MOPS 需要非压缩 BED 文件（如果 target_bed 是 .gz，请另外提供解压版本）
   target_bed: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/loci.bed"
+  target_bed_SV: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/fusion_genes_sv.bed"
   
   # 种系资源数据库
   #群体胚系变异资源（如gnomAD vcf），用于区分体细胞与胚系突变
@@ -71,6 +72,7 @@ filtering:
     max_ci: 1.0                     # 最大置信区间（CNVkit 用）
 
     # ── panelcn.MOPS 专用过滤参数（扩增子 Panel 推荐）──────────────
+    panelcnmops_gene_annotation: "/home/zhangli_lab/zhouxiangyu/DATA/projects/CIBR-ZHANGLI/ctDNA/resource/gene_annotation.bed"
     # 若未设置，以上 CNVkit 参数将作为默认值回退
     panelcnmops_min_log2_abs:    0.3    # 基因级 |log2ratio| 最低阈值（建议同 CNVkit）
     panelcnmops_min_amplicons:   2      # 基因内最少 amplicon 数（对应 min_probes）
@@ -94,7 +96,7 @@ filtering:
     svaba_min_mapq: 5                           # 最小比对质量
     svaba_min_support: 2                        # 最小支持 reads 数
     # 靶向融合检测
-    fusion_min_mapq: 20                         # 最小比对质量
+    fusion_min_mapq: 10                         # 最小比对质量
     fusion_min_support: 2                       # 最小支持 reads 数
     fusion_flank: 500                           # BED 区域外扩 bp
 
@@ -104,9 +106,9 @@ tools:
   # panelcn.MOPS 所在 conda 环境的 Rscript
   rscript: "~/DATA/miniconda3/envs/panelcnmops/bin/Rscript"
   # CNVkit 路径（原有配置，集中管理）
-  cnvkit:  "~/DATA/miniconda3/envs/smk-ctdna/bin/cnvkit.py"
+  cnvkit:  "~/DATA/miniconda3/envs/cnvkit/bin/cnvkit.py"
   # GRIDSS2 jar 路径（assembly-based SV 检测）
-  gridss_jar: "/home/zhangli_lab/zhouxiangyu/DATA/software/gridss/gridss.jar"
+  gridss_jar: "/usr/nzx-cluster/apps/gridss/gridss-2.9.4-gridss-jar-with-dependencies.jar"
 
 annotation:
   annovar:

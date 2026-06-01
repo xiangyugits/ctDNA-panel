@@ -20,14 +20,14 @@ rule call_cnv_cnvkit:
         cns=f"{VAR_DIR}/cnv/{{tumor}}.cns"
     log:
         f"{LOG_DIR}/cnvkit_{{tumor}}.log"
+    params:
+        cnvkit_bin=config["tools"]["cnvkit"]
     threads: 4
     resources:
         mem_mb=16000
-    #conda:
-    #    "envs/environment.yaml"
     shell:
         """
-        {config["tools"]["cnvkit"]} batch \
+        {params.cnvkit_bin} batch \
             {input.tumor_bam} \
             --normal {input.normal_bam} \
             --targets {input.bed} \
@@ -124,6 +124,7 @@ rule call_cnv_panelcnmops:
         min_rc     = config["filtering"]["cnv"].get("panelcnmops_min_rc", 1),
         alpha      = config["filtering"]["cnv"].get("panelcnmops_alpha", 0.05),
         threads    = 4,
+        gene_annot = config["filtering"]["cnv"].get("panelcnmops_gene_annotation", ""),
         rbin       = config.get("tools", {}).get("rscript",
                          "~/DATA/miniconda3/envs/panelcnmops/bin/Rscript")
     threads: 4
@@ -142,6 +143,7 @@ rule call_cnv_panelcnmops:
             --min-rc       {params.min_rc} \
             --alpha        {params.alpha} \
             --threads      {params.threads} \
+            --gene-annotation {params.gene_annot} \
             --log          {log} \
             2>> {log}
         """

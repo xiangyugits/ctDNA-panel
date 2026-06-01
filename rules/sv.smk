@@ -174,7 +174,7 @@ rule delly_filter_targeted:
     input:
         vcf=rules.delly_bcf_to_vcf.output.vcf,
         vcf_tbi=rules.delly_bcf_to_vcf.output.tbi,
-        bed=TARGET_BED
+        bed=target_bed_SV
     output:
         vcf=f"{SV_DIR}/{{tumor}}.delly.targeted.vcf.gz",
         tbi=f"{SV_DIR}/{{tumor}}.delly.targeted.vcf.gz.tbi",
@@ -360,7 +360,7 @@ rule call_sv_manta:
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         normal_bai=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
         ref=REF_FASTA,
-        bed=TARGET_BED
+        bed=target_bed_SV
     output:
         vcf=f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz",
         tbi=f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz.tbi"
@@ -444,7 +444,7 @@ rule call_sv_gridss:
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         normal_bai=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
         ref=REF_FASTA,
-        bed=TARGET_BED
+        bed=target_bed_SV
     output:
         vcf=f"{VAR_DIR}/sv/{{tumor}}.gridss.vcf.gz",
         tbi=f"{VAR_DIR}/sv/{{tumor}}.gridss.vcf.gz.tbi",
@@ -458,9 +458,11 @@ rule call_sv_gridss:
         tmp_dir=f"{TMP_DIR}/gridss_{{tumor}}",
         blacklist=SV_FILTER.get("gridss_blacklist", ""),
         # 靶向区域（外扩 500bp，捕获断点附近的 split reads）
-        target_bed=TARGET_BED
+        target_bed=target_bed_SV
     shell:
         """
+        module load gridss
+
         mkdir -p {params.tmp_dir}
 
         echo "========================================" >> {log}
@@ -540,7 +542,7 @@ rule call_sv_svaba:
         normal_bam=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam",
         normal_bai=f"{BAM_DIR}/{NORMAL_SAMPLE}.dedup.bam.bai",
         ref=REF_FASTA,
-        bed=TARGET_BED
+        bed=target_bed_SV
     output:
         sv_vcf=f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz",
         sv_tbi=f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz.tbi",
@@ -636,8 +638,7 @@ rule call_sv_fusion_targeted:
     """
     input:
         tumor_bam=f"{BAM_DIR}/{{tumor}}.dedup.bam",
-        tumor_bai=f"{BAM_DIR}/{{tumor}}.dedup.bam.bai",
-        bed=TARGET_BED,
+        bed=target_bed_SV,
         script=os.path.join(SCRIPT_DIR, "detect_fusions.py")
     output:
         fusions_tsv=f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv",
