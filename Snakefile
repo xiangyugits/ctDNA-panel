@@ -53,7 +53,7 @@ wildcard_constraints:
 rule all:
     """最终输出目标"""
     input:
-        expand(f"{VAR_DIR}/cnv/{{tumor}}.cnv.filtered.cns", tumor=TUMOR_SAMPLES),
+        expand(f"{FINAL_DIR}/{{tumor}}.snv.filtered.txt", tumor=TUMOR_SAMPLES),
         #expand(f"{VAR_DIR}/snv/{{tumor}}.snv.filtered.vcf.gz", tumor=TUMOR_SAMPLES),
         # BWA-MEM2 索引文件（确保索引存在）
         #f"{config['reference']['bwa_mem2_index']}.0123", 
@@ -76,17 +76,17 @@ rule all:
         #    推荐优先级：靶向融合 > SvABA > GRIDSS2 > Manta > Delly
 
         # 靶向融合检测（专为扩增子 Panel 设计，推荐首选）
-        expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv", tumor=TUMOR_SAMPLES),
-        expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.summary.txt", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.tsv", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.fusions.summary.txt", tumor=TUMOR_SAMPLES),
 
         # SvABA（靶向测序专用，推荐次选）
-        expand(f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.svaba.sv.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # GRIDSS2（assembly-based，备选）
         #expand(f"{VAR_DIR}/sv/{{tumor}}.gridss.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # Manta（已降阈值优化，备选）
-        expand(f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz", tumor=TUMOR_SAMPLES),
+        #expand(f"{VAR_DIR}/sv/{{tumor}}.manta.vcf.gz", tumor=TUMOR_SAMPLES),
 
         # Delly（已修复路径冲突，备选）
         #expand(f"{VAR_DIR}/sv/{{tumor}}.delly.done", tumor=TUMOR_SAMPLES),
@@ -113,8 +113,8 @@ rule all:
 # rules
 # ===================================================================
 
-#include: "rules/qc.smk"
-#include: "rules/align.smk"
+include: "rules/qc.smk"
+include: "rules/align.smk"
 include: "rules/snv.smk"
 include: "rules/cnv.smk"
 include: "rules/sv.smk"

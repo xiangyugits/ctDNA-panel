@@ -38,7 +38,6 @@ rule call_snv_mutect2:
         --intervals {input.bed} \
         --f1r2-tar-gz {output.stats} \
         --output {output.vcf} \
-        --dont-use-soft-clipped-bases true \
         --max-reads-per-alignment-start 0 \
         --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
         --max-mnp-distance 0 \
@@ -88,9 +87,10 @@ rule filter_snv_mutect2:
             --reference {input.ref} \
             --variant {input.vcf} \
             --contamination-estimate {params.contamination} \
-            --orientation-bias-artifact-priors {input.priors} \
+            --max-events-in-region 10 \
+            --initial-threshold 0.05 \
             --output {output.vcf} \
-            > {log} 2>&1
+        > {log} 2>&1
         """
 
 rule ctdna_comprehensive_filter:
